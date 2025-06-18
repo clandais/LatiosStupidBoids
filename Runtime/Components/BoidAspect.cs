@@ -22,6 +22,7 @@ namespace Boids.Components
         public DynamicBuffer<BoidNeighbor> Neighbors => m_neighbors;
 
         public float3 GoalPosition => m_goal.ValueRO.GoalPosition;
+        public float3 Velocity => m_forces.ValueRO.Velocity;
         public BoidSettings Settings => m_settings.ValueRO;
 
 
