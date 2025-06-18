@@ -5,6 +5,7 @@ using Unity.Entities;
 
 namespace Boids.Systems
 {
+    [DisableAutoCreation]
     [UpdateInGroup(typeof(PreTransformSuperSystem))]
     public partial class BoidSuperSystem : RootSuperSystem
     {

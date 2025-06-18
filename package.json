@@ -1,7 +1,7 @@
 ﻿{
   "name": "com.github.clandais.latiosboids",
   "displayName": "Latios Boids",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "unity": "6001.0",
   "description": "Latios Boids is a Unity package that provides simple stupid boids simulation capabilities for entities. It includes features such as flocking behavior and boids simulation algorithms.",
   "keywords": [
