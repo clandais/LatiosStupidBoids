@@ -1,7 +1,7 @@
 ﻿{
   "name": "com.github.clandais.latiosboids",
   "displayName": "Stupid Boids",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "unity": "6001.0",
   "description": "Stupid Boids is a Unity package that provides simple stupid boids simulation capabilities for entities. It includes features such as flocking behavior and boids simulation algorithms.",
   "keywords": [
