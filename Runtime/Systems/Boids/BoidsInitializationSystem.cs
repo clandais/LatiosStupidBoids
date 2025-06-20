@@ -7,17 +7,21 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
+using UnityEngine;
+using Physics = Latios.Psyshock.Physics;
 
 namespace Boids.Systems.Boids
 {
     [RequireMatchingQueriesForUpdate]
     internal partial struct BoidsInitializationSystem : ISystem
     {
-        EntityQuery m_query;
+        EntityQuery          m_query;
+        LatiosWorldUnmanaged m_latiosWorld;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
+            m_latiosWorld = state.GetLatiosWorldUnmanaged();
             m_query = state.Fluent()
                 .WithAspect<TransformAspect>()
                 .WithAspect<BoidAspect>()
@@ -34,9 +38,25 @@ namespace Boids.Systems.Boids
                 Bodies = bodies
             }.ScheduleParallel(m_query, state.Dependency);
 
-            // TODO : Add PhysicsSettings
-            state.Dependency = Physics.BuildCollisionLayer(bodies)
-                .ScheduleParallel(out var layer, state.WorldUpdateAllocator, state.Dependency);
+
+            CollisionLayer layer = default;
+
+            if (m_latiosWorld.sceneBlackboardEntity.HasComponent<BoidsPhysicsSettings>())
+            {
+                var settings = m_latiosWorld.sceneBlackboardEntity.GetComponentData<BoidsPhysicsSettings>()
+                    .collisionLayerSettings;
+
+                state.Dependency = Physics.BuildCollisionLayer(bodies)
+                    .WithSettings(settings)
+                    .ScheduleParallel(out layer, state.WorldUpdateAllocator, state.Dependency);
+            }
+            else
+            {
+                Debug.LogWarning("BoidsPhysicsSettings not found. Using default settings.");
+                state.Dependency = Physics.BuildCollisionLayer(bodies)
+                    .ScheduleParallel(out layer, state.WorldUpdateAllocator, state.Dependency);
+            }
+
 
             var findNeighbors = new FindNeighbors
             {
