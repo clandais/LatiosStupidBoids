@@ -21,8 +21,40 @@ namespace Boids.Components
         // ReSharper disable once ConvertToAutoProperty
         public DynamicBuffer<BoidNeighbor> Neighbors => m_neighbors;
 
+        public float3 SeparationForce
+        {
+            get => m_forces.ValueRO.Separation;
+            set => m_forces.ValueRW.Separation = value;
+        }
+
+        public float3 AlignmentForce
+        {
+            get => m_forces.ValueRO.Alignment;
+            set => m_forces.ValueRW.Alignment = value;
+        }
+
+        public float3 CohesionForce
+        {
+            get => m_forces.ValueRO.Cohesion;
+            set => m_forces.ValueRW.Cohesion = value;
+        }
+
+        public float3 FollowForce
+        {
+            get => m_forces.ValueRO.Follow;
+            set => m_forces.ValueRW.Follow = value;
+        }
+
+
         public float3 GoalPosition => m_goal.ValueRO.GoalPosition;
-        public float3 Velocity => m_forces.ValueRO.Velocity;
+
+
+        public float3 Velocity
+        {
+            get => m_forces.ValueRO.Velocity;
+            set => m_forces.ValueRW.Velocity = value;
+        }
+
         public BoidSettings Settings => m_settings.ValueRO;
 
 
@@ -30,7 +62,7 @@ namespace Boids.Components
         {
             Neighbors.Clear();
 
-            var sphereCollider = new SphereCollider(float3.zero, m_settings.ValueRO.centeringRadius);
+            var sphereCollider = new SphereCollider(float3.zero, m_settings.ValueRO.cohesionRadius);
 
             bodies[idx] = new ColliderBody
             {
@@ -41,15 +73,35 @@ namespace Boids.Components
         }
 
 
-        public float3 CalculateForces()
+        public float3 Arrive(float3 position, float3 target)
         {
-            var alignment = m_forces.ValueRO.AlignmentForce;
-            var centering = m_forces.ValueRO.CenteringForce;
-            var avoidance = m_forces.ValueRO.AvoidanceForce;
-            var follow = m_forces.ValueRO.FollowForce;
+            var toTarget = target - position;
+            var distance = math.distance(position, target);
+            var desired = float3.zero;
+            var slowdownRadius = m_settings.ValueRO.slowingRadius;
+
+            if (distance <= math.EPSILON)
+                return desired;
+
+            var ramped = m_settings.ValueRO.maxSpeed * (distance / (slowdownRadius * m_settings.ValueRO.agentWeight));
+            var clamped = math.min(ramped, m_settings.ValueRO.maxSpeed);
+            desired = clamped * (toTarget / distance);
+
+            desired -= m_forces.ValueRO.Velocity;
+            return desired;
+        }
+
+        float3 CalculateForces()
+        {
+            var alignment = m_forces.ValueRO.Alignment * m_settings.ValueRO.alignmentWeight;
+            var centering = m_forces.ValueRO.Cohesion * m_settings.ValueRO.cohesionWeight;
+            var avoidance = m_forces.ValueRO.Separation * m_settings.ValueRO.separationWeight;
+            var follow = m_forces.ValueRO.Follow * m_settings.ValueRO.followStrength;
 
             var totalForce = alignment + centering + avoidance + follow;
-            totalForce = math.lengthsq(totalForce) > float.Epsilon ? math.normalize(totalForce) : float3.zero;
+            totalForce = math.length(totalForce) > m_settings.ValueRO.maxForce
+                ? math.normalize(totalForce) * m_settings.ValueRO.maxForce
+                : totalForce;
 
             return totalForce;
         }
@@ -57,71 +109,43 @@ namespace Boids.Components
 
         public void DebugForces(float3 position)
         {
-            var alignment = m_forces.ValueRO.AlignmentForce;
+            var alignment = m_forces.ValueRO.Alignment;
             Debug.DrawLine(
                 position + math.up(),
-                position + math.up() + alignment * 10f,
-                Color.green);
-
-            var centering = m_forces.ValueRO.CenteringForce;
-            Debug.DrawLine(
-                position + math.up(),
-                position + math.up() + centering * 10f,
+                position + math.up() + alignment * 2f,
                 Color.blue);
 
-            var avoidance = m_forces.ValueRO.AvoidanceForce;
+            var centering = m_forces.ValueRO.Cohesion;
             Debug.DrawLine(
                 position + math.up(),
-                position + math.up() + avoidance * 10f,
+                position + math.up() + centering * 2f,
+                Color.yellow);
+
+            var avoidance = m_forces.ValueRO.Separation;
+            Debug.DrawLine(
+                position + math.up(),
+                position + math.up() + avoidance * 2f,
                 Color.red);
 
-            var follow = m_forces.ValueRO.FollowForce;
+            var follow = m_forces.ValueRO.Follow;
             Debug.DrawLine(
                 position + math.up(),
-                position + math.up() + follow * 10f,
-                Color.yellow, 1f, false);
+                position + math.up() + follow * 2f,
+                Color.cyan);
+
+            var totalForce = CalculateForces();
+            Debug.DrawLine(
+                position + math.up(),
+                position + math.up() + totalForce * 2f,
+                Color.green);
         }
 
 
-        public float3 Seek(float3 position, float3 target)
+        public float3 GetSteering(float deltaTime)
         {
-            var desired = math.normalize(target - position) * m_settings.ValueRO.maxSpeed;
-            var steering = desired - m_forces.ValueRO.Velocity;
-
-            if (math.length(steering) > m_settings.ValueRO.maxSpeed)
-                steering = math.normalize(steering) * m_settings.ValueRO.maxSpeed;
-
-            if (math.any(math.isnan(steering))) return float3.zero;
-
-            return steering;
-        }
-
-        public void ApplyForce(float3 force)
-        {
-            // check for nan force
-            if (math.any(math.isnan(force)))
-            {
-                Debug.LogWarning($"Force applied to boid is NaN: {force}");
-                return;
-            }
-
-            m_forces.ValueRW.Acceleration += force;
-        }
-
-        public float3 Update(float3 position, float deltaTime)
-        {
-            // Update velocity
-            m_forces.ValueRW.Velocity += m_forces.ValueRO.Acceleration * deltaTime;
-
-            if (math.length(m_forces.ValueRO.Velocity) > m_settings.ValueRO.maxSpeed)
-                m_forces.ValueRW.Velocity = math.normalize(m_forces.ValueRO.Velocity) * m_settings.ValueRO.maxSpeed;
-
-            // Update position
-            var newPosition = position + m_forces.ValueRW.Velocity * deltaTime;
-            // Reset acceleration for next frame
-            m_forces.ValueRW.Acceleration = float3.zero;
-
-            return newPosition;
+            var force = CalculateForces();
+            if (math.any(math.isnan(force))) return float3.zero;
+            return force * deltaTime;
         }
 
         public void SetGoal(float3 goal)

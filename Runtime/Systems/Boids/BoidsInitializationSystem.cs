@@ -11,14 +11,18 @@ using Unity.Mathematics;
 namespace Boids.Systems.Boids
 {
     [RequireMatchingQueriesForUpdate]
-    public partial struct BoidsInitializationSystem : ISystem
+    internal partial struct BoidsInitializationSystem : ISystem
     {
         EntityQuery m_query;
 
         [BurstCompile]
         public void OnCreate(ref SystemState state)
         {
-            m_query = state.Fluent().WithAspect<TransformAspect>().WithAspect<BoidAspect>().Build();
+            m_query = state.Fluent()
+                .WithAspect<TransformAspect>()
+                .WithAspect<BoidAspect>()
+                .WithEnabled<BoidEnabledTag>()
+                .Build();
         }
 
         [BurstCompile]
@@ -30,6 +34,7 @@ namespace Boids.Systems.Boids
                 Bodies = bodies
             }.ScheduleParallel(m_query, state.Dependency);
 
+            // TODO : Add PhysicsSettings
             state.Dependency = Physics.BuildCollisionLayer(bodies)
                 .ScheduleParallel(out var layer, state.WorldUpdateAllocator, state.Dependency);
 
@@ -56,6 +61,7 @@ namespace Boids.Systems.Boids
             }
         }
 
+        [BurstCompile]
         struct FindNeighbors : IFindPairsProcessor
         {
             public PhysicsBufferLookup<BoidNeighbor> BoidNeighborLookup;

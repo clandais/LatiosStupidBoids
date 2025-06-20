@@ -11,14 +11,14 @@ namespace Boids.Authoring
     public class BoidAuthoring : MonoBehaviour
     {
         [SerializeField] BoidSettings boidSettings;
-
+        [SerializeField] bool         boidEnabled = true;
 
         void OnDrawGizmos()
         {
             Gizmos.color = Color.green;
-            Gizmos.DrawWireSphere(transform.position, boidSettings.centeringRadius);
+            Gizmos.DrawWireSphere(transform.position, boidSettings.cohesionRadius);
             Gizmos.color = Color.red;
-            Gizmos.DrawWireSphere(transform.position, boidSettings.avoidanceRadius);
+            Gizmos.DrawWireSphere(transform.position, boidSettings.separationRadius);
             Gizmos.color = Color.blue;
             Gizmos.DrawWireSphere(transform.position, boidSettings.alignmentRadius);
         }
@@ -29,15 +29,22 @@ namespace Boids.Authoring
             {
                 var entity = GetEntity(TransformUsageFlags.Dynamic);
                 AddComponent<BoidTag>(entity);
+
+
+                AddComponent<BoidEnabledTag>(entity);
+                SetComponentEnabled<BoidEnabledTag>(entity, authoring.boidEnabled);
+
                 AddBuffer<BoidNeighbor>(entity);
                 AddComponent(entity, authoring.boidSettings);
 
+
+
                 AddComponent(entity, new BoidForces
                 {
-                    AlignmentForce = float3.zero,
-                    AvoidanceForce = float3.zero,
-                    CenteringForce = float3.zero,
-                    FollowForce    = float3.zero
+                    Alignment  = float3.zero,
+                    Separation = float3.zero,
+                    Cohesion   = float3.zero,
+                    Follow     = float3.zero
                 });
 
                 AddComponent(entity, new BoidGoal
@@ -51,6 +58,8 @@ namespace Boids.Authoring
 
     public struct BoidTag : IComponentData { }
 
+    public struct BoidEnabledTag : IComponentData, IEnableableComponent { }
+
     public struct BoidGoal : IComponentData
     {
         public float3 GoalPosition;
@@ -60,34 +69,41 @@ namespace Boids.Authoring
     [Serializable]
     public struct BoidSettings : IComponentData
     {
-        public float agentRadius;
         public float maxSpeed;
         public float maxForce;
 
 
-        [Header("Forces")] [FormerlySerializedAs("neighborRadius")]
-        public float centeringRadius;
+        [FormerlySerializedAs("centeringRadius")] [Header("Forces")] [FormerlySerializedAs("neighborRadius")]
+        public float cohesionRadius;
 
-        public float centeringStrength;
+        [FormerlySerializedAs("centeringStrength")]
+        public float cohesionWeight;
 
-        public float avoidanceRadius;
-        public float avoidanceStrength;
+        [FormerlySerializedAs("avoidanceRadius")]
+        public float separationRadius;
+
+        [FormerlySerializedAs("avoidanceStrength")]
+        public float separationWeight;
 
         public float alignmentRadius;
-        public float alignmentStrength;
+
+        [FormerlySerializedAs("alignmentStrength")]
+        public float alignmentWeight;
 
         public float followStrength;
+        public float slowingRadius;
+        public float agentWeight;
     }
 
 
     public struct BoidForces : IComponentData
     {
-        public float3 Acceleration;
         public float3 Velocity;
-        public float3 AvoidanceForce;
-        public float3 AlignmentForce;
-        public float3 CenteringForce;
-        public float3 FollowForce;
+
+        public float3 Separation;
+        public float3 Alignment;
+        public float3 Cohesion;
+        public float3 Follow;
     }
 
     public struct BoidNeighbor : IBufferElementData

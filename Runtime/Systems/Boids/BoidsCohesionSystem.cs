@@ -9,7 +9,7 @@ using Unity.Mathematics;
 
 namespace Boids.Systems.Boids
 {
-    internal partial struct BoidsAlignmentSystem : ISystem
+    internal partial struct BoidsCohesionSystem : ISystem
     {
         EntityQuery m_query;
 
@@ -25,18 +25,14 @@ namespace Boids.Systems.Boids
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            state.Dependency = new AlignJob
+            state.Dependency = new CohesionJob
             {
                 WorldTransformLookup = SystemAPI.GetComponentLookup<WorldTransform>(true)
             }.ScheduleParallel(m_query, state.Dependency);
         }
 
         [BurstCompile]
-        public void OnDestroy(ref SystemState state) { }
-
-
-        [BurstCompile]
-        partial struct AlignJob : IJobEntity
+        partial struct CohesionJob : IJobEntity
         {
             [ReadOnly] public ComponentLookup<WorldTransform> WorldTransformLookup;
 
@@ -47,39 +43,39 @@ namespace Boids.Systems.Boids
             {
                 if (boidAspect.NeighborCount == 0)
                 {
-                    boidAspect.AlignmentForce = float3.zero;
+                    boidAspect.CohesionForce = float3.zero;
                     return;
                 }
 
-                var transform = WorldTransformLookup[entity];
-                var avgHeading = transform.forwardDirection;
-                var count = 0;
-
+                var position = WorldTransformLookup[entity].position;
+                var centerOfMass = position;
+                var neighborCount = 0;
                 foreach (var neighbor in boidAspect.Neighbors)
                 {
-                    var neighborTransform = WorldTransformLookup[neighbor.Neighbor.entity];
+                    var neighborPosition = WorldTransformLookup[neighbor.Neighbor.entity].position;
 
-                    if (math.distance(transform.position, neighborTransform.position) >
-                        boidAspect.Settings.separationRadius)
+                    if (math.distance(position, neighborPosition) > boidAspect.Settings.cohesionRadius)
                         continue;
 
-                    avgHeading += neighborTransform.forwardDirection;
-                    count++;
+                    centerOfMass += neighborPosition;
+                    neighborCount++;
                 }
 
-                if (count > 0)
+                var force = float3.zero;
+                if (neighborCount > 0)
                 {
-                    avgHeading /= count;
-                    avgHeading -= transform.forwardDirection; // Remove the boid's own heading
+                    centerOfMass /= neighborCount;
+                    force        =  math.normalize(centerOfMass);
                 }
 
-                if (math.any(math.isnan(avgHeading)))
+
+                if (math.any(math.isnan(force)))
                 {
-                    boidAspect.AlignmentForce = float3.zero;
+                    boidAspect.CohesionForce = float3.zero;
                     return;
                 }
 
-                boidAspect.AlignmentForce = avgHeading;
+                boidAspect.CohesionForce = force;
             }
         }
     }

@@ -1,4 +1,5 @@
-﻿using Boids.Components;
+﻿using Boids.Authoring;
+using Boids.Components;
 using Latios;
 using Latios.Transforms;
 using Unity.Burst;
@@ -7,7 +8,7 @@ using Unity.Mathematics;
 
 namespace Boids.Systems.Boids
 {
-    public partial struct BoidsFollowGoalSystem : ISystem
+    internal partial struct BoidsFollowGoalSystem : ISystem
     {
         EntityQuery m_query;
 
@@ -17,6 +18,7 @@ namespace Boids.Systems.Boids
             m_query = state.Fluent()
                 .WithAspect<TransformAspect>()
                 .WithAspect<BoidAspect>()
+                .WithEnabled<BoidEnabledTag>()
                 .Build();
         }
 
@@ -34,20 +36,14 @@ namespace Boids.Systems.Boids
                 BoidAspect boidAspect)
             {
                 var goal = boidAspect.GoalPosition;
+                var force = boidAspect.Arrive(transformAspect.worldPosition, goal);
+                if (math.any(math.isnan(force)))
+                {
+                    boidAspect.FollowForce = float3.zero;
+                    return;
+                }
 
-                if (math.any(math.isnan(goal))) return;
-
-                var seek = boidAspect.Seek(transformAspect.worldPosition, goal);
-
-                if (math.any(math.isnan(seek))) return;
-
-                var distanceToGoal = math.distance(transformAspect.worldPosition, goal);
-                if (distanceToGoal < boidAspect.Settings.agentRadius)
-                    seek = math.lerp(float3.zero, seek, distanceToGoal / boidAspect.Settings.agentRadius);
-
-                // var directionToGoal = math.normalize(goal - transformAspect.worldPosition);
-                boidAspect.ApplyForce(seek * boidAspect.Settings.followStrength);
-                //directionToGoal * boidAspect.Settings.followStrength);
+                boidAspect.FollowForce = force;
             }
         }
     }

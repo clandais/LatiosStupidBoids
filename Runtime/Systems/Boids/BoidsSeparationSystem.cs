@@ -9,7 +9,7 @@ using Unity.Mathematics;
 
 namespace Boids.Systems.Boids
 {
-    internal partial struct BoidsAlignmentSystem : ISystem
+    internal partial struct BoidsSeparationSystem : ISystem
     {
         EntityQuery m_query;
 
@@ -25,7 +25,7 @@ namespace Boids.Systems.Boids
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            state.Dependency = new AlignJob
+            state.Dependency = new SeparationJob
             {
                 WorldTransformLookup = SystemAPI.GetComponentLookup<WorldTransform>(true)
             }.ScheduleParallel(m_query, state.Dependency);
@@ -36,50 +36,44 @@ namespace Boids.Systems.Boids
 
 
         [BurstCompile]
-        partial struct AlignJob : IJobEntity
+        internal partial struct SeparationJob : IJobEntity
         {
             [ReadOnly] public ComponentLookup<WorldTransform> WorldTransformLookup;
 
             void Execute(
                 Entity entity,
-                [EntityIndexInQuery] int entityIndex,
+                [EntityIndexInQuery] int _,
                 BoidAspect boidAspect)
             {
                 if (boidAspect.NeighborCount == 0)
                 {
-                    boidAspect.AlignmentForce = float3.zero;
+                    boidAspect.SeparationForce = float3.zero;
                     return;
                 }
 
-                var transform = WorldTransformLookup[entity];
-                var avgHeading = transform.forwardDirection;
-                var count = 0;
+                var position = WorldTransformLookup[entity].position;
+                var totalForce = float3.zero;
+
 
                 foreach (var neighbor in boidAspect.Neighbors)
                 {
-                    var neighborTransform = WorldTransformLookup[neighbor.Neighbor.entity];
+                    var neighborPosition = WorldTransformLookup[neighbor.Neighbor.entity].position;
+                    var distance = math.distance(neighborPosition, position);
 
-                    if (math.distance(transform.position, neighborTransform.position) >
-                        boidAspect.Settings.separationRadius)
+                    if (math.distance(position, neighborPosition) > boidAspect.Settings.separationRadius)
                         continue;
 
-                    avgHeading += neighborTransform.forwardDirection;
-                    count++;
+                    var pushForce = position - neighborPosition;
+                    totalForce += math.normalize(pushForce) / distance;
                 }
 
-                if (count > 0)
+                if (math.any(math.isnan(totalForce)))
                 {
-                    avgHeading /= count;
-                    avgHeading -= transform.forwardDirection; // Remove the boid's own heading
-                }
-
-                if (math.any(math.isnan(avgHeading)))
-                {
-                    boidAspect.AlignmentForce = float3.zero;
+                    boidAspect.SeparationForce = float3.zero;
                     return;
                 }
 
-                boidAspect.AlignmentForce = avgHeading;
+                boidAspect.SeparationForce = totalForce;
             }
         }
     }

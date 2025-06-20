@@ -12,8 +12,8 @@ namespace Boids.Systems
         protected override void CreateSystems()
         {
             GetOrCreateAndAddUnmanagedSystem<BoidsInitializationSystem>();
-            GetOrCreateAndAddUnmanagedSystem<BoidsCenterSystem>();
-            GetOrCreateAndAddUnmanagedSystem<BoidsAvoidanceSystem>();
+            GetOrCreateAndAddUnmanagedSystem<BoidsCohesionSystem>();
+            GetOrCreateAndAddUnmanagedSystem<BoidsSeparationSystem>();
             GetOrCreateAndAddUnmanagedSystem<BoidsAlignmentSystem>();
             GetOrCreateAndAddUnmanagedSystem<BoidsFollowGoalSystem>();
         }
