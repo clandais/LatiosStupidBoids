@@ -41,10 +41,11 @@ namespace Boids.Authoring
 
                 AddComponent(entity, new BoidForces
                 {
-                    Alignment  = float3.zero,
-                    Separation = float3.zero,
-                    Cohesion   = float3.zero,
-                    Follow     = float3.zero
+                    Alignment          = float3.zero,
+                    Separation         = float3.zero,
+                    Cohesion           = float3.zero,
+                    Follow             = float3.zero,
+                    CollisionAvoidance = float3.zero
                 });
 
                 AddComponent(entity, new BoidGoal
@@ -90,6 +91,8 @@ namespace Boids.Authoring
         [FormerlySerializedAs("alignmentStrength")]
         public float alignmentWeight;
 
+        public float collisionAvoidanceWeight;
+
         public float followStrength;
         public float slowingRadius;
         public float agentWeight;
@@ -104,6 +107,7 @@ namespace Boids.Authoring
         public float3 Alignment;
         public float3 Cohesion;
         public float3 Follow;
+        public float3 CollisionAvoidance;
     }
 
     public struct BoidNeighbor : IBufferElementData

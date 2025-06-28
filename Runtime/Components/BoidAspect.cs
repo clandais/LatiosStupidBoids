@@ -45,6 +45,12 @@ namespace Boids.Components
             set => m_forces.ValueRW.Follow = value;
         }
 
+        public float3 CollisionAvoidanceForce
+        {
+            get => m_forces.ValueRO.CollisionAvoidance;
+            set => m_forces.ValueRW.CollisionAvoidance = value;
+        }
+
 
         public float3 GoalPosition => m_goal.ValueRO.GoalPosition;
 
@@ -97,8 +103,9 @@ namespace Boids.Components
             var centering = m_forces.ValueRO.Cohesion * m_settings.ValueRO.cohesionWeight;
             var avoidance = m_forces.ValueRO.Separation * m_settings.ValueRO.separationWeight;
             var follow = m_forces.ValueRO.Follow * m_settings.ValueRO.followStrength;
+            var collisionAvoidance = m_forces.ValueRO.CollisionAvoidance * m_settings.ValueRO.collisionAvoidanceWeight;
 
-            var totalForce = alignment + centering + avoidance + follow;
+            var totalForce = alignment + centering + avoidance + follow + collisionAvoidance;
             totalForce = math.length(totalForce) > m_settings.ValueRO.maxForce
                 ? math.normalize(totalForce) * m_settings.ValueRO.maxForce
                 : totalForce;
@@ -112,31 +119,37 @@ namespace Boids.Components
             var alignment = m_forces.ValueRO.Alignment;
             Debug.DrawLine(
                 position + math.up(),
-                position + math.up() + alignment * 2f,
+                position + math.up() + alignment * 5f,
                 Color.blue);
 
             var centering = m_forces.ValueRO.Cohesion;
             Debug.DrawLine(
                 position + math.up(),
-                position + math.up() + centering * 2f,
+                position + math.up() + centering * 5f,
                 Color.yellow);
 
             var avoidance = m_forces.ValueRO.Separation;
             Debug.DrawLine(
                 position + math.up(),
-                position + math.up() + avoidance * 2f,
-                Color.red);
+                position + math.up() + avoidance * 5f,
+                Color.magenta);
 
             var follow = m_forces.ValueRO.Follow;
             Debug.DrawLine(
                 position + math.up(),
-                position + math.up() + follow * 2f,
+                position + math.up() + follow * 5f,
                 Color.cyan);
+
+            var collisionAvoidance = m_forces.ValueRO.CollisionAvoidance;
+            Debug.DrawLine(
+                position + math.up(),
+                position + math.up() + collisionAvoidance * 5f,
+                Color.red);
 
             var totalForce = CalculateForces();
             Debug.DrawLine(
                 position + math.up(),
-                position + math.up() + totalForce * 2f,
+                position + math.up() + totalForce * 5f,
                 Color.green);
         }
 

@@ -48,7 +48,7 @@ namespace Boids.Systems.Boids
                 }
 
                 var position = WorldTransformLookup[entity].position;
-                var centerOfMass = position;
+                var centerOfMass = float3.zero;
                 var neighborCount = 0;
                 foreach (var neighbor in boidAspect.Neighbors)
                 {
@@ -62,20 +62,15 @@ namespace Boids.Systems.Boids
                 }
 
                 var force = float3.zero;
-                if (neighborCount > 0)
+
+                if (neighborCount > 0 && math.length(centerOfMass) > math.EPSILON)
                 {
                     centerOfMass /= neighborCount;
-                    force        =  math.normalize(centerOfMass);
+                    force        =  math.normalize(centerOfMass - position);
                 }
 
 
-                if (math.any(math.isnan(force)))
-                {
-                    boidAspect.CohesionForce = float3.zero;
-                    return;
-                }
-
-                boidAspect.CohesionForce = force;
+                boidAspect.CohesionForce = math.any(math.isnan(force)) ? float3.zero : force;
             }
         }
     }
